@@ -24,7 +24,6 @@ const (
 	URL = "https://www.okex.com/api/v1/"
 )
 
-
 func main(){
 
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
@@ -52,6 +51,7 @@ func main(){
 
 func getUserInfo (apiKey string, secretKey string) (okexTypes.UserInfo,error){
 	var params = url.Values{}
+
 	params.Set("api_key",apiKey)
 
 	sendAuthenticatedReq(&params, secretKey)
