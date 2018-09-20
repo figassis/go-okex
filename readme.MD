@@ -3,7 +3,7 @@
 Install by typing: 
 
 ```sh
-go get -u github.com/figassis/go-okex
+go get -u github.com/figassis/okex
 ```
 
 Currently supported api calls:
