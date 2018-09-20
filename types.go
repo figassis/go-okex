@@ -26,12 +26,12 @@ type OrderInfo struct {
 	Result bool `json:"result"`
 	Orders []struct {
 		Amount     decimal.Decimal `json:"amount"`
-		AvgPrice   int             `json:"avg_price"`
+		AvgPrice   decimal.Decimal `json:"avg_price"`
 		CreateDate int64           `json:"create_date"`
-		DealAmount int             `json:"deal_amount"`
+		DealAmount decimal.Decimal `json:"deal_amount"`
 		OrderID    int             `json:"order_id"`
 		OrdersID   int             `json:"orders_id"`
-		Price      int             `json:"price"`
+		Price      decimal.Decimal `json:"price"`
 		Status     int             `json:"status"`
 		Symbol     string          `json:"symbol"`
 		Type       string          `json:"type"`
@@ -44,10 +44,10 @@ type OrderHistory struct {
 	CurrencyPage int  `json:"currency_page"`
 	PageLength   int  `json:"page_length"`
 	Orders       []struct {
-		Amount     int             `json:"amount"`
-		AvgPrice   int             `json:"avg_price"`
+		Amount     decimal.Decimal `json:"amount"`
+		AvgPrice   decimal.Decimal `json:"avg_price"`
 		CreateDate int64           `json:"create_date"`
-		DealAmount int             `json:"deal_amount"`
+		DealAmount decimal.Decimal `json:"deal_amount"`
 		OrderID    int             `json:"order_id"`
 		OrdersID   int             `json:"orders_id"`
 		Price      decimal.Decimal `json:"price"`
