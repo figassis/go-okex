@@ -1,116 +1,90 @@
-package main
+package okex
 
 import (
-	"github.com/parnurzeal/gorequest"
-	"time"
-	"net/url"
-	"strings"
 	"crypto/md5"
 	"encoding/hex"
-	"io/ioutil"
 	"encoding/json"
-	"path/filepath"
-	"os"
-	"log"
 	"errors"
-	"strconv"
-	"fmt"
+	"net/url"
 	"runtime"
-	okexTypes "github.com/donfrigo/okex/helpers"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/parnurzeal/gorequest"
+	"github.com/shopspring/decimal"
 )
 
 const (
-	ConfigFile = "config.json"
 	URL = "https://www.okex.com/api/v1/"
 )
 
-func main(){
-
-	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	path := dir+GetSlash()+ConfigFile
-	config := loadKeys(path)
-
-	APIKEY := config.APIKey
-	SECRETKEY := config.SecretKey
-
-	fmt.Println(getUserInfo(APIKEY,SECRETKEY))
-
-	//fmt.Println(trade(APIKEY,SECRETKEY,"theta_btc","buy","0.00001049","50"))
-
-	fmt.Println(cancelOrder(APIKEY,SECRETKEY,"theta_btc","11199103"))
-
-	fmt.Println(getOrderInfo(APIKEY,SECRETKEY,"theta_btc","11199103"))
-
-	fmt.Println(getOrderHistory(APIKEY,SECRETKEY,"theta_btc","0","0","200"))
-
+func New(key, secret string) Client {
+	return Client{APIKey: key, SecretKey: secret}
 }
 
-func getUserInfo (apiKey string, secretKey string) (okexTypes.UserInfo,error){
+func (c Client) GetUserInfo() (UserInfo, error) {
 	var params = url.Values{}
 
-	params.Set("api_key",apiKey)
+	params.Set("api_key", c.APIKey)
 
-	sendAuthenticatedReq(&params, secretKey)
+	sendAuthenticatedReq(&params, c.SecretKey)
 
 	return okexUserInfo(params)
 
 }
 
-func trade (apiKey string, secretKey string, symbol string, orderType string, price string, amount string) (okexTypes.Receipt, error){
+func (c Client) Trade(symbol string, orderType string, price decimal.Decimal, amount decimal.Decimal) (Receipt, error) {
 	var params = url.Values{}
 
-	params.Set("api_key",apiKey)
-	params.Set("symbol",symbol)
-	params.Set("type",orderType)
-	params.Set("price",price)
-	params.Set("amount",amount)
+	params.Set("api_key", c.APIKey)
+	params.Set("symbol", symbol)
+	params.Set("type", orderType)
+	params.Set("price", price.String())
+	params.Set("amount", amount.String())
 
-	sendAuthenticatedReq(&params, secretKey)
+	sendAuthenticatedReq(&params, c.SecretKey)
 
 	return okexTrade(params)
 
 }
 
-func cancelOrder (apiKey string, secretKey string, symbol string, orderId string) (okexTypes.Receipt, error){
+func (c Client) cancelOrder(symbol string, orderId string) (Receipt, error) {
 	var params = url.Values{}
 
-	params.Set("api_key",apiKey)
-	params.Set("symbol",symbol)
-	params.Set("order_id",orderId)
+	params.Set("api_key", c.APIKey)
+	params.Set("symbol", symbol)
+	params.Set("order_id", orderId)
 
-	sendAuthenticatedReq(&params, secretKey)
+	sendAuthenticatedReq(&params, c.SecretKey)
 
 	return okexCancel(params)
 
 }
 
-func getOrderInfo (apiKey string, secretKey string, symbol string, orderId string) (okexTypes.OrderInfo, error){
+func (c Client) getOrderInfo(symbol string, orderId string) (OrderInfo, error) {
 	var params = url.Values{}
 
-	params.Set("api_key",apiKey)
-	params.Set("symbol",symbol)
-	params.Set("order_id",orderId)
+	params.Set("api_key", c.APIKey)
+	params.Set("symbol", symbol)
+	params.Set("order_id", orderId)
 
-	sendAuthenticatedReq(&params, secretKey)
+	sendAuthenticatedReq(&params, c.SecretKey)
 
 	return okexOrderInfo(params)
 
 }
 
-func getOrderHistory (apiKey string, secretKey string, symbol string, status string, currentPage string, pageLength string) (okexTypes.OrderHistory, error){
+func (c Client) getOrderHistory(symbol string, status string, currentPage string, pageLength string) (OrderHistory, error) {
 	var params = url.Values{}
 
-	params.Set("api_key",apiKey)
-	params.Set("symbol",symbol)
-	params.Set("status",status)
-	params.Set("current_page",currentPage)
-	params.Set("page_length",pageLength)
+	params.Set("api_key", c.APIKey)
+	params.Set("symbol", symbol)
+	params.Set("status", status)
+	params.Set("current_page", currentPage)
+	params.Set("page_length", pageLength)
 
-	sendAuthenticatedReq(&params, secretKey)
+	sendAuthenticatedReq(&params, c.SecretKey)
 
 	return okexOrderHistory(params)
 
@@ -118,14 +92,14 @@ func getOrderHistory (apiKey string, secretKey string, symbol string, status str
 
 ///// helper functions
 
-func reqPost(url string, c string) string{
-	request := gorequest.New().Timeout(time.Second*5)
+func reqPost(url string, c string) string {
+	request := gorequest.New().Timeout(time.Second * 5)
 	resp, body, err := request.Post(url).
-		Set("contentType","application/x-www-form-urlencoded").
+		Set("contentType", "application/x-www-form-urlencoded").
 		Send(c).
 		End()
 
-	if err != nil && resp.StatusCode != 200{
+	if err != nil && resp.StatusCode != 200 {
 		panic(err)
 	}
 
@@ -158,89 +132,76 @@ func GetParamMD5Sign(secret, params string) (string, error) {
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
+func okexUserInfo(params url.Values) (UserInfo, error) {
+	var objmap = UserInfo{}
+	var error = ErrorCode{}
 
-// ReadFile reads a file and returns read data as byte array.
-func ReadFile(path string) ([]byte, error) {
-	file, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
+	resp := reqPost(URL+"userinfo.do", params.Encode())
+
+	if err := json.Unmarshal([]byte(resp), &error); err != nil {
 	}
-	return file, nil
-}
-
-func loadKeys (pathToJsonFile string) okexTypes.Config{
-	file, err := ReadFile(pathToJsonFile)
-	if err != nil {
+	if err := json.Unmarshal([]byte(resp), &objmap); err != nil {
 	}
-
-	config := okexTypes.Config{}
-
-	if err := json.Unmarshal([]byte(file), &config); err != nil {}
-
-	return config
-
-}
-
-func okexUserInfo (params url.Values) (okexTypes.UserInfo,error){
-	var objmap = okexTypes.UserInfo{}
-	var error = okexTypes.ErrorCode{}
-
-	resp := reqPost(URL+"userinfo.do",params.Encode())
-
-	if err := json.Unmarshal([]byte(resp), &error); err != nil {}
-	if err := json.Unmarshal([]byte(resp), &objmap); err != nil {}
 
 	return objmap, getErrorMessage(error.ErrorCode)
 
 }
 
-func okexTrade (params url.Values) (okexTypes.Receipt, error){
-	var obj = okexTypes.Receipt{}
-	var error = okexTypes.ErrorCode{}
+func okexTrade(params url.Values) (Receipt, error) {
+	var obj = Receipt{}
+	var error = ErrorCode{}
 
-	resp := reqPost(URL+"trade.do",params.Encode())
+	resp := reqPost(URL+"trade.do", params.Encode())
 
-	if err := json.Unmarshal([]byte(resp), &error); err != nil {}
-	if err := json.Unmarshal([]byte(resp), &obj); err != nil {}
-
-	return obj, getErrorMessage(error.ErrorCode)
-
-}
-
-func okexCancel (params url.Values) (okexTypes.Receipt, error){
-	var obj = okexTypes.Receipt{}
-	var error = okexTypes.ErrorCode{}
-
-	resp := reqPost(URL+"cancel_order.do",params.Encode())
-
-	if err := json.Unmarshal([]byte(resp), &error); err != nil {}
-	if err := json.Unmarshal([]byte(resp), &obj); err != nil {}
+	if err := json.Unmarshal([]byte(resp), &error); err != nil {
+	}
+	if err := json.Unmarshal([]byte(resp), &obj); err != nil {
+	}
 
 	return obj, getErrorMessage(error.ErrorCode)
 
 }
 
-func okexOrderInfo (params url.Values) (okexTypes.OrderInfo, error){
-	var obj = okexTypes.OrderInfo{}
-	var error = okexTypes.ErrorCode{}
+func okexCancel(params url.Values) (Receipt, error) {
+	var obj = Receipt{}
+	var error = ErrorCode{}
 
-	resp := reqPost(URL+"order_info.do",params.Encode())
+	resp := reqPost(URL+"cancel_order.do", params.Encode())
 
-	if err := json.Unmarshal([]byte(resp), &error); err != nil {}
-	if err := json.Unmarshal([]byte(resp), &obj); err != nil {}
+	if err := json.Unmarshal([]byte(resp), &error); err != nil {
+	}
+	if err := json.Unmarshal([]byte(resp), &obj); err != nil {
+	}
 
 	return obj, getErrorMessage(error.ErrorCode)
 
 }
 
-func okexOrderHistory(params url.Values) (okexTypes.OrderHistory, error){
-	var obj = okexTypes.OrderHistory{}
-	var error = okexTypes.ErrorCode{}
+func okexOrderInfo(params url.Values) (OrderInfo, error) {
+	var obj = OrderInfo{}
+	var error = ErrorCode{}
 
-	resp := reqPost(URL+"order_history.do",params.Encode())
+	resp := reqPost(URL+"order_info.do", params.Encode())
 
-	if err := json.Unmarshal([]byte(resp), &error); err != nil {}
-	if err := json.Unmarshal([]byte(resp), &obj); err != nil {}
+	if err := json.Unmarshal([]byte(resp), &error); err != nil {
+	}
+	if err := json.Unmarshal([]byte(resp), &obj); err != nil {
+	}
+
+	return obj, getErrorMessage(error.ErrorCode)
+
+}
+
+func okexOrderHistory(params url.Values) (OrderHistory, error) {
+	var obj = OrderHistory{}
+	var error = ErrorCode{}
+
+	resp := reqPost(URL+"order_history.do", params.Encode())
+
+	if err := json.Unmarshal([]byte(resp), &error); err != nil {
+	}
+	if err := json.Unmarshal([]byte(resp), &obj); err != nil {
+	}
 
 	return obj, getErrorMessage(error.ErrorCode)
 
@@ -253,10 +214,10 @@ func GetSlash() string {
 	return "/"
 }
 
-func getErrorMessage(_input int) error{
+func getErrorMessage(_input int) error {
 	var input = strconv.Itoa(_input)
 
-	 var ErrorCodes = map[string]error{
+	var ErrorCodes = map[string]error{
 		//Spot Errors
 		"10000": errors.New("Required field, can not be null"),
 		"10001": errors.New("Request frequency too high to exceed the limit allowed"),
@@ -382,7 +343,7 @@ func getErrorMessage(_input int) error{
 		"20017": errors.New("Not authorized/illegal operation"),
 		"20018": errors.New("Order price cannot be more than 103% or less than 97% of the previous minute price"),
 		"20019": errors.New("IP restricted from accessing the resource"),
-		"20020": errors.New("secretKey does not exist"),
+		"20020": errors.New("c.SecretKey does not exist"),
 		"20021": errors.New("Index information does not exist"),
 		"20022": errors.New("Wrong API interface (Cross margin mode shall call cross margin API, fixed margin mode shall call fixed margin API)"),
 		"20023": errors.New("Account in fixed-margin mode"),
@@ -397,11 +358,6 @@ func getErrorMessage(_input int) error{
 		"20049": errors.New("Request frequency too high"),
 	}
 
-
-		return ErrorCodes[input]
-
-
+	return ErrorCodes[input]
 
 }
-
-
