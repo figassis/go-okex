@@ -62,7 +62,7 @@ func (c Client) cancelOrder(symbol string, orderId string) (Receipt, error) {
 
 }
 
-func (c Client) getOrderInfo(symbol string, orderId string) (OrderInfo, error) {
+func (c Client) GetOrderInfo(symbol string, orderId string) (OrderInfo, error) {
 	var params = url.Values{}
 
 	params.Set("api_key", c.APIKey)
@@ -75,7 +75,7 @@ func (c Client) getOrderInfo(symbol string, orderId string) (OrderInfo, error) {
 
 }
 
-func (c Client) getOrderHistory(symbol string, status string, currentPage string, pageLength string) (OrderHistory, error) {
+func (c Client) GetOrderHistory(symbol string, status string, currentPage string, pageLength string) (OrderHistory, error) {
 	var params = url.Values{}
 
 	params.Set("api_key", c.APIKey)

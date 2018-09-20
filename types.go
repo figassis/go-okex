@@ -17,7 +17,7 @@ type UserInfo struct {
 	Result bool `json:"result"`
 	Info   struct {
 		Funds struct {
-			Borrow, Free, Freezed map[string]interface{}
+			Borrow, Free, Freezed map[string]decimal.Decimal
 		} `json:"funds"`
 	} `json:"info"`
 }
